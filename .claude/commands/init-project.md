@@ -27,6 +27,124 @@ git --version
 
 ---
 
+## Phase 0: Docker Installation (Ubuntu/Debian Linux)
+
+**Skip this phase if Docker is already installed.** If `docker --version` fails, follow these steps:
+
+### 1. Update Package Index
+
+```bash
+apt-get update
+```
+
+**Expected:** Package lists updated successfully
+
+### 2. Install Prerequisites
+
+```bash
+apt-get install -y ca-certificates curl gnupg lsb-release
+```
+
+**Expected:** Prerequisites installed (may already be present)
+
+### 3. Fix /tmp Permissions (if needed)
+
+```bash
+chmod 1777 /tmp
+```
+
+**Expected:** No output (permissions set correctly)
+
+### 4. Add Docker's GPG Key
+
+```bash
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+```
+
+**Expected:** GPG key downloaded and saved
+
+### 5. Add Docker Repository
+
+```bash
+# Get your Ubuntu codename and architecture
+CODENAME=$(lsb_release -cs)
+ARCH=$(dpkg --print-architecture)
+
+# Add Docker repository
+echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+```
+
+**Expected:** Docker repository added
+
+### 6. Install Docker
+
+```bash
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+**Expected:** Docker packages installed (~99.5 MB download, 416 MB disk space)
+
+### 7. Start Docker Daemon
+
+```bash
+# Fix /tmp permissions first
+chmod 1777 /tmp
+
+# Start Docker daemon in background
+dockerd > /var/log/docker.log 2>&1 &
+
+# Wait for Docker to start
+sleep 3
+```
+
+**Expected:** Docker daemon running in background
+
+### 8. Verify Docker Installation
+
+```bash
+# Check versions
+docker --version
+docker compose version
+
+# Test Docker daemon
+docker info | head -5
+```
+
+**Expected:**
+- Docker version 29.1.1 (or newer)
+- Docker Compose version v2.40.3 (or newer)
+- Docker info shows client details
+
+### Troubleshooting Docker Installation
+
+**If Docker daemon fails to start:**
+
+```bash
+# Check Docker logs
+tail -50 /var/log/docker.log
+
+# Ensure /tmp has correct permissions
+chmod 1777 /tmp
+
+# Try starting again
+dockerd > /var/log/docker.log 2>&1 &
+```
+
+**For Debian (instead of Ubuntu):**
+
+Replace step 5 with:
+
+```bash
+CODENAME=$(lsb_release -cs)
+ARCH=$(dpkg --print-architecture)
+echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian ${CODENAME} stable" > /etc/apt/sources.list.d/docker.list
+```
+
+---
+
 ## Phase 1: Project Setup
 
 ### 1. Clone/Navigate to Project
