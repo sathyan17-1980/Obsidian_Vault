@@ -133,6 +133,25 @@ chmod 1777 /tmp
 dockerd > /var/log/docker.log 2>&1 &
 ```
 
+**If you see "iptables: Protocol not supported" or "Failed to initialize nft":**
+
+```bash
+# Stop Docker if running
+pkill dockerd
+sleep 2
+
+# Start Docker without iptables (works in restricted environments)
+dockerd --iptables=false --ip6tables=false > /var/log/docker.log 2>&1 &
+
+# Wait and verify
+sleep 5
+docker info | head -5
+```
+
+**If Docker cannot pull images** (e.g., "Forbidden" errors):
+
+This indicates network restrictions preventing access to Docker Hub. Use **Option B: Direct PostgreSQL Installation** in Phase 2 instead.
+
 **For Debian (instead of Ubuntu):**
 
 Replace step 5 with:
@@ -180,33 +199,122 @@ cat .env | grep -E "(DATABASE_URL|PORT|APP_NAME)"
 
 ## Phase 2: Database Setup
 
-### 4. Start PostgreSQL Container
+**Choose ONE option below:** Docker (Option A) OR Direct PostgreSQL Installation (Option B)
+
+---
+
+### **Option A: Docker-based PostgreSQL** (Recommended if Docker images can be pulled)
+
+#### 4A. Start PostgreSQL Container
 
 ```bash
-docker-compose up -d db
+docker compose up -d db
 ```
 
 **Expected:** PostgreSQL container starts on port 5433
 
-### 5. Wait for Database Ready
+**Note:** Your `.env` should use: `DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/obsidian_db`
+
+#### 5A. Wait for Database Ready
 
 ```bash
 sleep 5
 ```
 
-### 6. Verify Database Health
+#### 6A. Verify Database Health
 
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 **Expected:** `db` service shows "Up (healthy)"
 
 ```bash
-docker-compose exec db pg_isready -U postgres
+docker compose exec db pg_isready -U postgres
 ```
 
 **Expected:** "accepting connections"
+
+---
+
+### **Option B: Direct PostgreSQL Installation** (Use if Docker images cannot be pulled)
+
+#### 4B. Install PostgreSQL
+
+```bash
+apt-get install -y postgresql postgresql-16 postgresql-client-16
+```
+
+**Expected:** PostgreSQL 16 installed
+
+#### 5B. Fix SSL Certificate Permissions
+
+```bash
+# Disable SSL for development (simpler than fixing certificate permissions)
+sed -i "s/ssl = on/ssl = off/" /etc/postgresql/16/main/postgresql.conf
+```
+
+**Expected:** SSL disabled in config
+
+#### 6B. Configure Authentication
+
+```bash
+# Allow password authentication for postgres user
+sed -i 's/local   all             postgres                                peer/local   all             postgres                                trust/' /etc/postgresql/16/main/pg_hba.conf
+
+# Allow md5 authentication for all local connections
+sed -i 's/local   all             all                                     peer/local   all             all                                     md5/' /etc/postgresql/16/main/pg_hba.conf
+
+# Allow md5 authentication for TCP/IP connections
+sed -i 's/host    all             all             127.0.0.1\/32            scram-sha-256/host    all             all             127.0.0.1\/32            md5/' /etc/postgresql/16/main/pg_hba.conf
+```
+
+**Expected:** Authentication configured
+
+#### 7B. Start PostgreSQL
+
+```bash
+service postgresql start
+sleep 2
+pg_isready
+```
+
+**Expected:** `/var/run/postgresql:5432 - accepting connections`
+
+#### 8B. Create Database and User
+
+```bash
+su - postgres -c "psql -c 'CREATE DATABASE obsidian_db;'"
+su - postgres -c "psql -c \"ALTER USER postgres WITH PASSWORD 'postgres';\""
+```
+
+**Expected:** Database created, password set
+
+#### 9B. Verify Database
+
+```bash
+su - postgres -c "psql -l" | grep obsidian
+```
+
+**Expected:** Shows `obsidian_db` in the list
+
+#### 10B. Update .env File
+
+```bash
+# Edit .env to use port 5432 (standard PostgreSQL port)
+# Ensure DATABASE_URL is set to:
+# DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/obsidian_db
+```
+
+**Or run:**
+
+```bash
+sed -i 's|DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/obsidian_db|# DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5433/obsidian_db  # Docker\nDATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/obsidian_db  # Direct PostgreSQL|' .env
+```
+
+---
+
+### **Continue with either option:**
 
 ### 7. Run Database Migrations
 
