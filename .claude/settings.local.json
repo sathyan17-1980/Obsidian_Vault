@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv --version:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(git --version:*)",
+      "Bash(if [ ! -f .env ])",
+      "Bash(then cp .env.example .env)",
+      "Bash(else echo \"✓ .env file already exists\")",
+      "Bash(fi)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(python -m json.tool:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(python -m uv:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
